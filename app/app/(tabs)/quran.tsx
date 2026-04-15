@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   StyleSheet,
   View,
@@ -7,15 +7,26 @@ import {
   SafeAreaView,
   TextInput,
 } from 'react-native';
+import { useLocalSearchParams } from 'expo-router';
 
 type Mode = 'Read' | 'Test';
 
 const MAX_PAGE = 604;
 
 export default function QuranScreen() {
+  const { page: pageParam } = useLocalSearchParams<{ page?: string }>();
   const [mode, setMode] = useState<Mode>('Read');
   const [page, setPage] = useState(1);
   const [pageInput, setPageInput] = useState('1');
+
+  useEffect(() => {
+    if (pageParam) {
+      const parsed = parseInt(pageParam, 10);
+      if (!isNaN(parsed)) {
+        goToPage(parsed);
+      }
+    }
+  }, [pageParam]);
 
   const goToPage = (target: number) => {
     const clamped = Math.max(1, Math.min(MAX_PAGE, target));

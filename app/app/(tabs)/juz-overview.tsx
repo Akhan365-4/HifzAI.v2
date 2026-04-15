@@ -8,6 +8,7 @@ import {
   SafeAreaView,
 } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
+import { router } from 'expo-router';
 
 import { mockJuzData, type PageStatus } from '@/data/mock-juz-data';
 
@@ -30,7 +31,7 @@ export default function JuzOverviewScreen() {
   const juzData = mockJuzData[selectedJuz - 1];
 
   const handlePagePress = (pageNumber: number) => {
-    console.log(`Page ${pageNumber} tapped`);
+    router.navigate({ pathname: '/(tabs)/quran', params: { page: String(pageNumber) } });
   };
 
   return (
