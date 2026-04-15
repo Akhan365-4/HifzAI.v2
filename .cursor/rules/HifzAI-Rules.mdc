@@ -1,0 +1,131 @@
+---
+alwaysApply: true
+---
+
+You are helping build a production-quality Quran memorization (Hifz) app using React Native (Expo) and Firebase.
+
+========================
+GENERAL BEHAVIOR
+========================
+- Do NOT build the entire app at once.
+- Work feature-by-feature in small, safe steps.
+- Before writing code, briefly explain:
+  1) what will be built
+  2) which files will be created/modified
+- Prefer editing existing code over rewriting large sections.
+- Do NOT remove working features unless explicitly asked.
+- If something is missing (API, data, assets), DO NOT invent it. Clearly state what is missing.
+- If a task is too large, break it into smaller steps instead of attempting everything.
+
+========================
+ARCHITECTURE RULES
+========================
+- Use clean, modular structure.
+- Separate:
+  - UI (screens/components)
+  - business logic (hooks/services)
+  - data access (Firebase/API)
+- Keep screens simple and move logic into hooks or services.
+- Reuse components when it makes sense, but do NOT over-engineer.
+- Use clear and consistent naming across files.
+
+========================
+TECH STACK RULES
+========================
+- Use React Native with Expo.
+- Use TypeScript.
+- Use functional components with hooks.
+- Only use Expo-compatible libraries unless explicitly approved.
+- Avoid adding unnecessary dependencies.
+
+========================
+UI/UX RULES
+========================
+- Prioritize clarity over complexity.
+- All buttons must clearly describe their action.
+- Navigation must always be obvious.
+- Always handle:
+  - loading states
+  - empty states
+  - error states
+- Do NOT rely only on color:
+  - include text labels (e.g., Green = Strong, Yellow = Needs Review, Red = Retest Needed)
+- Keep layouts simple, readable, and mobile-friendly.
+
+========================
+QURAN APP RULES (CRITICAL)
+========================
+- This app is page-based (15-line Uthmani Madina Mushaf).
+- NEVER assume or invent Quran structure data.
+- Page, Surah, Ayah, and Juz mappings must be treated carefully.
+- Reciter selection must be user-controlled and persisted.
+- User progress must always be saved and consistent across sessions.
+
+========================
+TESTING MODE RULES
+========================
+- Difficulty levels: novice, easy, medium, pro.
+- Difficulty evaluation logic MUST be centralized (not duplicated across files).
+- Page color (green/yellow/red) must be calculated using a single reusable function.
+- Do NOT mix evaluation logic directly inside UI components.
+
+========================
+MISTAKE & REVIEW SYSTEM
+========================
+- Mistakes must be stored as structured data (not just UI highlights).
+- Users must be able to:
+  - select ayahs with mistakes
+  - replay them using a reciter
+  - choose repeat counts
+- Retesting must update:
+  - highlights
+  - mistake data
+  - page color
+
+========================
+AUTH & DATA RULES
+========================
+- Use Firebase Auth for login/signup.
+- Persist user sessions (auto-login on same device).
+- Store user data in Firestore.
+- Cloud data should be the source of truth when appropriate.
+- Do NOT store sensitive data insecurely.
+
+========================
+CODE QUALITY RULES
+========================
+- Write simple, readable code.
+- Avoid clever or complex patterns.
+- Handle edge cases and failures.
+- Add comments only when logic is not obvious.
+- Prefer clarity over optimization.
+
+========================
+REAL-TIME RECOGNITION (IMPORTANT)
+========================
+- Real-time recitation detection is an ADVANCED feature.
+- Do NOT pretend it is fully implemented unless it actually is.
+- If implementing placeholder logic, clearly label it:
+  // TODO: placeholder logic — not real recitation detection
+- Never fake production-ready AI behavior.
+
+========================
+RESPONSE FORMAT
+========================
+When responding:
+1) Briefly explain the plan
+2) Show only relevant code changes
+3) List assumptions, missing pieces, or risks
+
+========================
+PROJECT-SPECIFIC GOAL
+========================
+This app focuses on:
+- Quran reading (full Mushaf pages)
+- Memorization testing (per page)
+- Mistake highlighting and review
+- Juz overview with color-coded progress
+- Reciter playback and repetition
+- Persistent user progress across devices
+
+Always prioritize building a clean, working MVP before adding advanced features.
