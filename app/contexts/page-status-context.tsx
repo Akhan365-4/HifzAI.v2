@@ -1,9 +1,13 @@
-import { createContext, useContext, useState, useCallback, type ReactNode } from 'react';
+import { createContext, useContext, useState, useCallback, useEffect, useRef, type ReactNode } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { mockJuzData, STATUS_CYCLE, type JuzData, type PageStatus } from '@/data/mock-juz-data';
 
+const STORAGE_KEY = 'hifzai_page_statuses';
+
 interface PageStatusContextValue {
   juzData: JuzData[];
+  isLoaded: boolean;
   cyclePageStatus: (pageNumber: number) => void;
   setPageStatus: (pageNumber: number, status: PageStatus) => void;
   getPageStatus: (pageNumber: number) => PageStatus;
@@ -11,10 +15,37 @@ interface PageStatusContextValue {
 
 const PageStatusContext = createContext<PageStatusContextValue | null>(null);
 
+function getDefaultData(): JuzData[] {
+  return mockJuzData.map((juz) => ({ ...juz, pages: juz.pages.map((p) => ({ ...p })) }));
+}
+
 export function PageStatusProvider({ children }: { children: ReactNode }) {
-  const [juzData, setJuzData] = useState<JuzData[]>(() =>
-    mockJuzData.map((juz) => ({ ...juz, pages: juz.pages.map((p) => ({ ...p })) })),
-  );
+  const [juzData, setJuzData] = useState<JuzData[]>(getDefaultData);
+  const [isLoaded, setIsLoaded] = useState(false);
+  const isInitialLoad = useRef(true);
+
+  useEffect(() => {
+    AsyncStorage.getItem(STORAGE_KEY)
+      .then((raw) => {
+        if (raw) {
+          const parsed = JSON.parse(raw) as JuzData[];
+          setJuzData(parsed);
+        }
+      })
+      .catch(() => {})
+      .finally(() => {
+        setIsLoaded(true);
+      });
+  }, []);
+
+  useEffect(() => {
+    if (isInitialLoad.current) {
+      isInitialLoad.current = false;
+      return;
+    }
+    if (!isLoaded) return;
+    AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(juzData)).catch(() => {});
+  }, [juzData, isLoaded]);
 
   const cyclePageStatus = (pageNumber: number) => {
     setJuzData((prev) =>
@@ -51,8 +82,10 @@ export function PageStatusProvider({ children }: { children: ReactNode }) {
     [juzData],
   );
 
+  if (!isLoaded) return null;
+
   return (
-    <PageStatusContext.Provider value={{ juzData, cyclePageStatus, setPageStatus, getPageStatus }}>
+    <PageStatusContext.Provider value={{ juzData, isLoaded, cyclePageStatus, setPageStatus, getPageStatus }}>
       {children}
     </PageStatusContext.Provider>
   );
