@@ -7,7 +7,9 @@ import {
   SafeAreaView,
   TextInput,
 } from 'react-native';
-import { useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams, router } from 'expo-router';
+
+import { usePageStatus } from '@/contexts/page-status-context';
 
 type Mode = 'Read' | 'Test';
 
@@ -15,6 +17,7 @@ const MAX_PAGE = 604;
 
 export default function QuranScreen() {
   const { page: pageParam } = useLocalSearchParams<{ page?: string }>();
+  const { cyclePageStatus } = usePageStatus();
   const [mode, setMode] = useState<Mode>('Read');
   const [page, setPage] = useState(1);
   const [pageInput, setPageInput] = useState('1');
@@ -27,6 +30,11 @@ export default function QuranScreen() {
       }
     }
   }, [pageParam]);
+
+  const handleCompleteTest = () => {
+    cyclePageStatus(page);
+    router.navigate('/(tabs)/juz-overview');
+  };
 
   const goToPage = (target: number) => {
     const clamped = Math.max(1, Math.min(MAX_PAGE, target));
@@ -87,6 +95,16 @@ export default function QuranScreen() {
         </Text>
         <Text style={styles.modeIndicator}>Mode: {mode}</Text>
       </View>
+
+      {mode === 'Test' && (
+        <TouchableOpacity
+          style={styles.completeTestButton}
+          onPress={handleCompleteTest}
+          activeOpacity={0.7}
+        >
+          <Text style={styles.completeTestText}>Complete Test</Text>
+        </TouchableOpacity>
+      )}
 
       {/* Navigation buttons */}
       <View style={styles.navRow}>
@@ -229,5 +247,18 @@ const styles = StyleSheet.create({
   },
   navButtonTextDisabled: {
     color: '#999',
+  },
+  completeTestButton: {
+    marginHorizontal: 16,
+    marginTop: 12,
+    paddingVertical: 14,
+    borderRadius: 8,
+    backgroundColor: '#34C759',
+    alignItems: 'center',
+  },
+  completeTestText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#fff',
   },
 });

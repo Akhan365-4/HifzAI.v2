@@ -10,7 +10,8 @@ import {
 import { Picker } from '@react-native-picker/picker';
 import { router } from 'expo-router';
 
-import { mockJuzData, STATUS_CYCLE, type PageStatus, type JuzData } from '@/data/mock-juz-data';
+import { type PageStatus } from '@/data/mock-juz-data';
+import { usePageStatus } from '@/contexts/page-status-context';
 
 const statusColors: Record<PageStatus, string> = {
   'Strong': '#d4edda',
@@ -28,22 +29,10 @@ const statusTextColors: Record<PageStatus, string> = {
 
 export default function JuzOverviewScreen() {
   const [selectedJuz, setSelectedJuz] = useState(1);
-  const [juzDataState, setJuzDataState] = useState<JuzData[]>(() =>
-    mockJuzData.map((juz) => ({ ...juz, pages: juz.pages.map((p) => ({ ...p })) })),
-  );
-  const juzData = juzDataState[selectedJuz - 1];
+  const { juzData: allJuzData } = usePageStatus();
+  const juzData = allJuzData[selectedJuz - 1];
 
   const handlePagePress = (pageNumber: number) => {
-    setJuzDataState((prev) =>
-      prev.map((juz) => ({
-        ...juz,
-        pages: juz.pages.map((p) => {
-          if (p.pageNumber !== pageNumber) return p;
-          const nextIndex = (STATUS_CYCLE.indexOf(p.status) + 1) % STATUS_CYCLE.length;
-          return { ...p, status: STATUS_CYCLE[nextIndex] };
-        }),
-      })),
-    );
     router.navigate({ pathname: '/(tabs)/quran', params: { page: String(pageNumber) } });
   };
 
