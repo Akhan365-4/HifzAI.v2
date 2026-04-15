@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   StyleSheet,
   View,
@@ -6,10 +6,12 @@ import {
   TouchableOpacity,
   SafeAreaView,
   TextInput,
+  ScrollView,
 } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 
 import { usePageStatus } from '@/contexts/page-status-context';
+import { MISTAKE_TYPES, type Mistake } from '@/data/mock-juz-data';
 import {
   evaluateTest,
   DIFFICULTIES,
@@ -21,14 +23,16 @@ type Mode = 'Read' | 'Test';
 
 const MAX_PAGE = 604;
 
+let mistakeIdCounter = 0;
+
 export default function QuranScreen() {
   const { page: pageParam } = useLocalSearchParams<{ page?: string }>();
-  const { setPageStatus } = usePageStatus();
+  const { isLoaded, getPageMistakes, setPageMistakes, setPageStatus } = usePageStatus();
   const [mode, setMode] = useState<Mode>('Read');
   const [page, setPage] = useState(1);
   const [pageInput, setPageInput] = useState('1');
   const [difficulty, setDifficulty] = useState<Difficulty>('Easy');
-  const [mistakeCount, setMistakeCount] = useState(0);
+  const [mistakes, setMistakes] = useState<Mistake[]>([]);
 
   useEffect(() => {
     if (pageParam) {
@@ -40,8 +44,29 @@ export default function QuranScreen() {
   }, [pageParam]);
 
   useEffect(() => {
-    setMistakeCount(0);
-  }, [page, difficulty]);
+    if (!isLoaded) return;
+    setMistakes(getPageMistakes(page));
+  }, [page, isLoaded, mode]);
+
+  const hasMountedDifficulty = useRef(false);
+  useEffect(() => {
+    if (!hasMountedDifficulty.current) {
+      hasMountedDifficulty.current = true;
+      return;
+    }
+    setMistakes([]);
+    setPageMistakes(page, []);
+  }, [difficulty]);
+
+  const addMistake = () => {
+    const position = Math.floor(Math.random() * 15) + 1;
+    const type = MISTAKE_TYPES[Math.floor(Math.random() * MISTAKE_TYPES.length)];
+    mistakeIdCounter += 1;
+    const newMistake: Mistake = { id: String(mistakeIdCounter), position, type };
+    const updated = [...mistakes, newMistake];
+    setMistakes(updated);
+    setPageMistakes(page, updated);
+  };
 
   const goToPage = (target: number) => {
     const clamped = Math.max(1, Math.min(MAX_PAGE, target));
@@ -59,8 +84,9 @@ export default function QuranScreen() {
   };
 
   const handleCompleteTest = () => {
-    const result = evaluateTest(mistakeCount, difficulty);
+    const result = evaluateTest(mistakes.length, difficulty);
     setPageStatus(page, result);
+    setPageMistakes(page, mistakes);
     router.navigate('/(tabs)/juz-overview');
   };
 
@@ -129,16 +155,26 @@ export default function QuranScreen() {
         <View style={styles.testControls}>
           <View style={styles.mistakeRow}>
             <Text style={styles.mistakeText}>
-              Mistakes: {mistakeCount} / {maxMistakes === Infinity ? '∞' : maxMistakes}
+              Mistakes: {mistakes.length} / {maxMistakes === Infinity ? '∞' : maxMistakes}
             </Text>
             <TouchableOpacity
               style={styles.addMistakeButton}
-              onPress={() => setMistakeCount((c) => c + 1)}
+              onPress={addMistake}
               activeOpacity={0.7}
             >
               <Text style={styles.addMistakeText}>+ Add Mistake</Text>
             </TouchableOpacity>
           </View>
+
+          {mistakes.length > 0 && (
+            <ScrollView style={styles.mistakeList} nestedScrollEnabled>
+              {mistakes.map((m) => (
+                <Text key={m.id} style={styles.mistakeItem}>
+                  Line {m.position} — {m.type}
+                </Text>
+              ))}
+            </ScrollView>
+          )}
 
           <TouchableOpacity
             style={styles.completeTestButton}
@@ -318,6 +354,19 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
     color: '#fff',
+  },
+  mistakeList: {
+    maxHeight: 100,
+    marginBottom: 10,
+    backgroundColor: '#fef2f2',
+    borderRadius: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  mistakeItem: {
+    fontSize: 13,
+    color: '#721c24',
+    paddingVertical: 3,
   },
   completeTestButton: {
     paddingVertical: 14,

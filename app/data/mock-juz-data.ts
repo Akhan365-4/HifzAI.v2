@@ -1,8 +1,19 @@
 export type PageStatus = 'Strong' | 'Needs Review' | 'Retest Needed' | 'Not Tested';
 
+export type MistakeType = 'missed word' | 'pronunciation' | 'wrong ayah' | 'hesitation';
+
+export const MISTAKE_TYPES: MistakeType[] = ['missed word', 'pronunciation', 'wrong ayah', 'hesitation'];
+
+export interface Mistake {
+  id: string;
+  position: number;
+  type: MistakeType;
+}
+
 export interface PageData {
   pageNumber: number;
   status: PageStatus;
+  mistakes: Mistake[];
 }
 
 export interface JuzData {
@@ -17,6 +28,7 @@ function generateJuzData(juzNumber: number): JuzData {
   const pages: PageData[] = Array.from({ length: 20 }, (_, i) => ({
     pageNumber: startPage + i,
     status: STATUS_CYCLE[i % STATUS_CYCLE.length],
+    mistakes: [],
   }));
   return { juzNumber, pages };
 }

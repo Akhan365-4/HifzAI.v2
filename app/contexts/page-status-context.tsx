@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, useCallback, useEffect, useRef, type ReactNode } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import { mockJuzData, STATUS_CYCLE, type JuzData, type PageStatus } from '@/data/mock-juz-data';
+import { mockJuzData, STATUS_CYCLE, type JuzData, type PageStatus, type Mistake } from '@/data/mock-juz-data';
 
 const STORAGE_KEY = 'hifzai_page_statuses';
 
@@ -11,6 +11,8 @@ interface PageStatusContextValue {
   cyclePageStatus: (pageNumber: number) => void;
   setPageStatus: (pageNumber: number, status: PageStatus) => void;
   getPageStatus: (pageNumber: number) => PageStatus;
+  setPageMistakes: (pageNumber: number, mistakes: Mistake[]) => void;
+  getPageMistakes: (pageNumber: number) => Mistake[];
 }
 
 const PageStatusContext = createContext<PageStatusContextValue | null>(null);
@@ -71,6 +73,17 @@ export function PageStatusProvider({ children }: { children: ReactNode }) {
     );
   };
 
+  const setPageMistakes = (pageNumber: number, mistakes: Mistake[]) => {
+    setJuzData((prev) =>
+      prev.map((juz) => ({
+        ...juz,
+        pages: juz.pages.map((p) =>
+          p.pageNumber === pageNumber ? { ...p, mistakes } : p,
+        ),
+      })),
+    );
+  };
+
   const getPageStatus = useCallback(
     (pageNumber: number): PageStatus => {
       for (const juz of juzData) {
@@ -82,10 +95,21 @@ export function PageStatusProvider({ children }: { children: ReactNode }) {
     [juzData],
   );
 
+  const getPageMistakes = useCallback(
+    (pageNumber: number): Mistake[] => {
+      for (const juz of juzData) {
+        const found = juz.pages.find((p) => p.pageNumber === pageNumber);
+        if (found) return found.mistakes ?? [];
+      }
+      return [];
+    },
+    [juzData],
+  );
+
   if (!isLoaded) return null;
 
   return (
-    <PageStatusContext.Provider value={{ juzData, isLoaded, cyclePageStatus, setPageStatus, getPageStatus }}>
+    <PageStatusContext.Provider value={{ juzData, isLoaded, cyclePageStatus, setPageStatus, getPageStatus, setPageMistakes, getPageMistakes }}>
       {children}
     </PageStatusContext.Provider>
   );
