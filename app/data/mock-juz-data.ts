@@ -10,18 +10,13 @@ export interface JuzData {
   pages: PageData[];
 }
 
-const statuses: PageStatus[] = ['Strong', 'Needs Review', 'Retest Needed', 'Not Tested'];
-
-function seededStatus(juz: number, pageIndex: number): PageStatus {
-  const hash = (juz * 31 + pageIndex * 7) % statuses.length;
-  return statuses[hash];
-}
+const STATUS_CYCLE: PageStatus[] = ['Strong', 'Needs Review', 'Retest Needed', 'Not Tested'];
 
 function generateJuzData(juzNumber: number): JuzData {
   const startPage = (juzNumber - 1) * 20 + 1;
   const pages: PageData[] = Array.from({ length: 20 }, (_, i) => ({
     pageNumber: startPage + i,
-    status: seededStatus(juzNumber, i),
+    status: STATUS_CYCLE[i % STATUS_CYCLE.length],
   }));
   return { juzNumber, pages };
 }
