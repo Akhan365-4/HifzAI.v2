@@ -10,7 +10,7 @@ export interface JuzData {
   pages: PageData[];
 }
 
-const STATUS_CYCLE: PageStatus[] = ['Strong', 'Needs Review', 'Retest Needed', 'Not Tested'];
+export const STATUS_CYCLE: PageStatus[] = ['Strong', 'Needs Review', 'Retest Needed', 'Not Tested'];
 
 function generateJuzData(juzNumber: number): JuzData {
   const startPage = (juzNumber - 1) * 20 + 1;
