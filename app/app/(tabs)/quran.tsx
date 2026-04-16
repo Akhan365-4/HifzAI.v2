@@ -11,7 +11,7 @@ import {
 import { useLocalSearchParams, router } from 'expo-router';
 
 import { usePageStatus } from '@/contexts/page-status-context';
-import { MISTAKE_TYPES, type Mistake } from '@/data/mock-juz-data';
+import { MISTAKE_TYPES, type Mistake, type MistakeType, type PageStatus } from '@/data/mock-juz-data';
 import {
   evaluateTest,
   DIFFICULTIES,
@@ -20,6 +20,24 @@ import {
 } from '@/utils/evaluate-test';
 
 type Mode = 'Read' | 'Test';
+
+interface TestFeedback {
+  result: PageStatus;
+  totalMistakes: number;
+  breakdown: Record<MistakeType, number>;
+}
+
+const RECOMMENDATIONS: Record<string, string> = {
+  'Strong': 'Great job. You can move forward or review once more for confidence.',
+  'Needs Review': 'Review this page again before moving on.',
+  'Retest Needed': 'Retest this page after focused review.',
+};
+
+const feedbackColors: Record<string, { bg: string; text: string }> = {
+  'Strong': { bg: '#d4edda', text: '#155724' },
+  'Needs Review': { bg: '#fff3cd', text: '#856404' },
+  'Retest Needed': { bg: '#f8d7da', text: '#721c24' },
+};
 
 const MAX_PAGE = 604;
 
@@ -33,6 +51,8 @@ export default function QuranScreen() {
   const [pageInput, setPageInput] = useState('1');
   const [difficulty, setDifficulty] = useState<Difficulty>('Easy');
   const [mistakes, setMistakes] = useState<Mistake[]>([]);
+  const [feedback, setFeedback] = useState<TestFeedback | null>(null);
+  const [isFeedbackExpanded, setIsFeedbackExpanded] = useState(true);
 
   useEffect(() => {
     if (pageParam) {
@@ -46,6 +66,7 @@ export default function QuranScreen() {
   useEffect(() => {
     if (!isLoaded) return;
     setMistakes(getPageMistakes(page));
+    setFeedback(null);
   }, [page, isLoaded, mode]);
 
   const hasMountedDifficulty = useRef(false);
@@ -87,128 +108,190 @@ export default function QuranScreen() {
     const result = evaluateTest(mistakes.length, difficulty);
     setPageStatus(page, result);
     setPageMistakes(page, mistakes);
-    router.navigate('/(tabs)/juz-overview');
+
+    const breakdown: Record<MistakeType, number> = {
+      'missed word': 0,
+      'pronunciation': 0,
+      'wrong ayah': 0,
+      'hesitation': 0,
+    };
+    for (const m of mistakes) {
+      breakdown[m.type]++;
+    }
+
+    setFeedback({ result, totalMistakes: mistakes.length, breakdown });
+    setIsFeedbackExpanded(true);
   };
 
   const maxMistakes = MAX_MISTAKES[difficulty];
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <Text style={styles.header}>Quran</Text>
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+        <Text style={styles.header}>Quran</Text>
 
-      <View style={styles.modeRow}>
-        {(['Read', 'Test'] as Mode[]).map((m) => (
-          <TouchableOpacity
-            key={m}
-            style={[styles.modeButton, mode === m && styles.modeButtonActive]}
-            onPress={() => setMode(m)}
-            activeOpacity={0.7}
-          >
-            <Text style={[styles.modeText, mode === m && styles.modeTextActive]}>
-              {m}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-
-      <View style={styles.pageInputRow}>
-        <Text style={styles.pageInputLabel}>Page:</Text>
-        <TextInput
-          style={styles.pageInput}
-          value={pageInput}
-          onChangeText={setPageInput}
-          onSubmitEditing={handlePageInputSubmit}
-          onBlur={handlePageInputSubmit}
-          keyboardType="number-pad"
-          returnKeyType="go"
-          selectTextOnFocus
-        />
-        <Text style={styles.pageTotal}>/ {MAX_PAGE}</Text>
-      </View>
-
-      {mode === 'Test' && (
-        <View style={styles.difficultyRow}>
-          {DIFFICULTIES.map((d) => (
+        <View style={styles.modeRow}>
+          {(['Read', 'Test'] as Mode[]).map((m) => (
             <TouchableOpacity
-              key={d}
-              style={[styles.difficultyButton, difficulty === d && styles.difficultyButtonActive]}
-              onPress={() => setDifficulty(d)}
+              key={m}
+              style={[styles.modeButton, mode === m && styles.modeButtonActive]}
+              onPress={() => setMode(m)}
               activeOpacity={0.7}
             >
-              <Text style={[styles.difficultyText, difficulty === d && styles.difficultyTextActive]}>
-                {d}
+              <Text style={[styles.modeText, mode === m && styles.modeTextActive]}>
+                {m}
               </Text>
             </TouchableOpacity>
           ))}
         </View>
-      )}
 
-      <View style={styles.pageArea}>
-        <Text style={styles.pageTitle}>Quran Page {page}</Text>
-        <Text style={styles.pagePlaceholder}>
-          15-line Uthmani Madina Mushaf placeholder
-        </Text>
-        <Text style={styles.modeIndicator}>Mode: {mode}</Text>
-      </View>
+        <View style={styles.pageInputRow}>
+          <Text style={styles.pageInputLabel}>Page:</Text>
+          <TextInput
+            style={styles.pageInput}
+            value={pageInput}
+            onChangeText={setPageInput}
+            onSubmitEditing={handlePageInputSubmit}
+            onBlur={handlePageInputSubmit}
+            keyboardType="number-pad"
+            returnKeyType="go"
+            selectTextOnFocus
+          />
+          <Text style={styles.pageTotal}>/ {MAX_PAGE}</Text>
+        </View>
 
-      {mode === 'Test' && (
-        <View style={styles.testControls}>
-          <View style={styles.mistakeRow}>
-            <Text style={styles.mistakeText}>
-              Mistakes: {mistakes.length} / {maxMistakes === Infinity ? '∞' : maxMistakes}
-            </Text>
+        {mode === 'Test' && (
+          <View style={styles.difficultyRow}>
+            {DIFFICULTIES.map((d) => (
+              <TouchableOpacity
+                key={d}
+                style={[styles.difficultyButton, difficulty === d && styles.difficultyButtonActive]}
+                onPress={() => setDifficulty(d)}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.difficultyText, difficulty === d && styles.difficultyTextActive]}>
+                  {d}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
+
+        <View style={styles.pageArea}>
+          <Text style={styles.pageTitle}>Quran Page {page}</Text>
+          <Text style={styles.pagePlaceholder}>
+            15-line Uthmani Madina Mushaf placeholder
+          </Text>
+          <Text style={styles.modeIndicator}>Mode: {mode}</Text>
+        </View>
+
+        {mode === 'Test' && (
+          <View style={styles.testControls}>
+            <View style={styles.mistakeRow}>
+              <Text style={styles.mistakeText}>
+                Mistakes: {mistakes.length} / {maxMistakes === Infinity ? '∞' : maxMistakes}
+              </Text>
+              <TouchableOpacity
+                style={styles.addMistakeButton}
+                onPress={addMistake}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.addMistakeText}>+ Add Mistake</Text>
+              </TouchableOpacity>
+            </View>
+
+            {mistakes.length > 0 && (
+              <View style={styles.mistakeList}>
+                {mistakes.map((m) => (
+                  <Text key={m.id} style={styles.mistakeItem}>
+                    Line {m.position} — {m.type}
+                  </Text>
+                ))}
+              </View>
+            )}
+
             <TouchableOpacity
-              style={styles.addMistakeButton}
-              onPress={addMistake}
+              style={styles.completeTestButton}
+              onPress={handleCompleteTest}
               activeOpacity={0.7}
             >
-              <Text style={styles.addMistakeText}>+ Add Mistake</Text>
+              <Text style={styles.completeTestText}>Complete Test</Text>
             </TouchableOpacity>
           </View>
+        )}
 
-          {mistakes.length > 0 && (
-            <ScrollView style={styles.mistakeList} nestedScrollEnabled>
-              {mistakes.map((m) => (
-                <Text key={m.id} style={styles.mistakeItem}>
-                  Line {m.position} — {m.type}
+        {feedback && (
+          <View style={[styles.feedbackCard, { backgroundColor: feedbackColors[feedback.result].bg }]}>
+            <View style={styles.feedbackHeader}>
+              <Text style={[styles.feedbackResult, { color: feedbackColors[feedback.result].text }]}>
+                Result: {feedback.result}
+              </Text>
+              <TouchableOpacity
+                onPress={() => setIsFeedbackExpanded((prev) => !prev)}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.feedbackToggle}>
+                  {isFeedbackExpanded ? 'Hide Details' : 'Show Details'}
                 </Text>
-              ))}
-            </ScrollView>
-          )}
+              </TouchableOpacity>
+            </View>
 
+            <Text style={[styles.feedbackDetail, { color: feedbackColors[feedback.result].text }]}>
+              Total Mistakes: {feedback.totalMistakes}
+            </Text>
+
+            {isFeedbackExpanded && (
+              <>
+                {feedback.totalMistakes > 0 && (
+                  <View style={styles.feedbackBreakdown}>
+                    {MISTAKE_TYPES.map((type) =>
+                      feedback.breakdown[type] > 0 ? (
+                        <Text key={type} style={styles.feedbackBreakdownItem}>
+                          {type}: {feedback.breakdown[type]}
+                        </Text>
+                      ) : null,
+                    )}
+                  </View>
+                )}
+                <Text style={styles.feedbackRecommendation}>
+                  {RECOMMENDATIONS[feedback.result]}
+                </Text>
+                <TouchableOpacity
+                  style={styles.backButton}
+                  onPress={() => router.navigate('/(tabs)/juz-overview')}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.backButtonText}>Back to Juz Overview</Text>
+                </TouchableOpacity>
+              </>
+            )}
+          </View>
+        )}
+
+        <View style={styles.navRow}>
           <TouchableOpacity
-            style={styles.completeTestButton}
-            onPress={handleCompleteTest}
+            style={[styles.navButton, page <= 1 && styles.navButtonDisabled]}
+            onPress={() => goToPage(page - 1)}
+            disabled={page <= 1}
             activeOpacity={0.7}
           >
-            <Text style={styles.completeTestText}>Complete Test</Text>
+            <Text style={[styles.navButtonText, page <= 1 && styles.navButtonTextDisabled]}>
+              ← Previous Page
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.navButton, page >= MAX_PAGE && styles.navButtonDisabled]}
+            onPress={() => goToPage(page + 1)}
+            disabled={page >= MAX_PAGE}
+            activeOpacity={0.7}
+          >
+            <Text style={[styles.navButtonText, page >= MAX_PAGE && styles.navButtonTextDisabled]}>
+              Next Page →
+            </Text>
           </TouchableOpacity>
         </View>
-      )}
-
-      <View style={styles.navRow}>
-        <TouchableOpacity
-          style={[styles.navButton, page <= 1 && styles.navButtonDisabled]}
-          onPress={() => goToPage(page - 1)}
-          disabled={page <= 1}
-          activeOpacity={0.7}
-        >
-          <Text style={[styles.navButtonText, page <= 1 && styles.navButtonTextDisabled]}>
-            ← Previous Page
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.navButton, page >= MAX_PAGE && styles.navButtonDisabled]}
-          onPress={() => goToPage(page + 1)}
-          disabled={page >= MAX_PAGE}
-          activeOpacity={0.7}
-        >
-          <Text style={[styles.navButtonText, page >= MAX_PAGE && styles.navButtonTextDisabled]}>
-            Next Page →
-          </Text>
-        </TouchableOpacity>
-      </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -218,18 +301,21 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#fff',
   },
+  scrollContent: {
+    paddingBottom: 24,
+  },
   header: {
     fontSize: 24,
     fontWeight: 'bold',
     textAlign: 'center',
     paddingTop: 16,
-    paddingBottom: 8,
+    paddingBottom: 12,
   },
   modeRow: {
     flexDirection: 'row',
     justifyContent: 'center',
     gap: 12,
-    marginBottom: 12,
+    marginBottom: 16,
     paddingHorizontal: 16,
   },
   modeButton: {
@@ -306,8 +392,9 @@ const styles = StyleSheet.create({
     color: '#fff',
   },
   pageArea: {
-    flex: 1,
+    minHeight: 220,
     marginHorizontal: 16,
+    marginBottom: 16,
     borderWidth: 1,
     borderColor: '#ddd',
     borderRadius: 12,
@@ -331,7 +418,7 @@ const styles = StyleSheet.create({
   },
   testControls: {
     paddingHorizontal: 16,
-    marginTop: 12,
+    marginBottom: 16,
   },
   mistakeRow: {
     flexDirection: 'row',
@@ -356,8 +443,7 @@ const styles = StyleSheet.create({
     color: '#fff',
   },
   mistakeList: {
-    maxHeight: 100,
-    marginBottom: 10,
+    marginBottom: 12,
     backgroundColor: '#fef2f2',
     borderRadius: 6,
     paddingHorizontal: 12,
@@ -376,6 +462,57 @@ const styles = StyleSheet.create({
   },
   completeTestText: {
     fontSize: 16,
+    fontWeight: '600',
+    color: '#fff',
+  },
+  feedbackCard: {
+    marginHorizontal: 16,
+    marginBottom: 16,
+    padding: 16,
+    borderRadius: 10,
+  },
+  feedbackHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  feedbackResult: {
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  feedbackToggle: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#007AFF',
+  },
+  feedbackDetail: {
+    fontSize: 14,
+    marginBottom: 4,
+  },
+  feedbackBreakdown: {
+    marginTop: 4,
+    marginBottom: 8,
+  },
+  feedbackBreakdownItem: {
+    fontSize: 13,
+    color: '#555',
+    paddingVertical: 1,
+  },
+  feedbackRecommendation: {
+    fontSize: 14,
+    fontStyle: 'italic',
+    color: '#444',
+    marginBottom: 12,
+  },
+  backButton: {
+    paddingVertical: 10,
+    borderRadius: 8,
+    backgroundColor: '#007AFF',
+    alignItems: 'center',
+  },
+  backButtonText: {
+    fontSize: 15,
     fontWeight: '600',
     color: '#fff',
   },
