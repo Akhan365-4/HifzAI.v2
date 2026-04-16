@@ -13,7 +13,7 @@ const statusConfig: { status: PageStatus; color: string; textColor: string }[] =
 
 function pct(count: number, total: number): string {
   if (total === 0) return '0%';
-  return `${Math.round((count / total) * 100)}%`;
+  return `${((count / total) * 100).toFixed(1)}%`;
 }
 
 export default function ProgressScreen() {
