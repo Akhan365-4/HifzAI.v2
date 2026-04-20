@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import {
   StyleSheet,
   View,
@@ -37,6 +37,13 @@ const feedbackColors: Record<string, { bg: string; text: string }> = {
   'Strong': { bg: '#d4edda', text: '#155724' },
   'Needs Review': { bg: '#fff3cd', text: '#856404' },
   'Retest Needed': { bg: '#f8d7da', text: '#721c24' },
+};
+
+const tagColors: Record<MistakeType, { bg: string; text: string }> = {
+  'missed word': { bg: '#fde8e8', text: '#b91c1c' },
+  'pronunciation': { bg: '#fff4e5', text: '#c2410c' },
+  'wrong ayah': { bg: '#fce4ec', text: '#ad1457' },
+  'hesitation': { bg: '#fff8e1', text: '#f57f17' },
 };
 
 const MAX_PAGE = 604;
@@ -125,6 +132,16 @@ export default function QuranScreen() {
 
   const maxMistakes = MAX_MISTAKES[difficulty];
 
+  const mistakesByLine = useMemo(() => {
+    const map = new Map<number, string[]>();
+    for (const m of mistakes) {
+      const existing = map.get(m.position) ?? [];
+      existing.push(m.type);
+      map.set(m.position, existing);
+    }
+    return map;
+  }, [mistakes]);
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
@@ -200,15 +217,37 @@ export default function QuranScreen() {
               </TouchableOpacity>
             </View>
 
-            {mistakes.length > 0 && (
-              <View style={styles.mistakeList}>
-                {mistakes.map((m) => (
-                  <Text key={m.id} style={styles.mistakeItem}>
-                    Line {m.position} — {m.type}
-                  </Text>
-                ))}
-              </View>
-            )}
+            <View style={styles.linePanel}>
+              {Array.from({ length: 15 }, (_, i) => {
+                const lineNum = i + 1;
+                const lineErrors = mistakesByLine.get(lineNum);
+                const hasError = !!lineErrors;
+                return (
+                  <View
+                    key={lineNum}
+                    style={[styles.lineRow, hasError && styles.lineRowError]}
+                  >
+                    <Text style={[styles.lineNumber, hasError && styles.lineNumberError]}>
+                      Line {lineNum}
+                    </Text>
+                    {hasError && (
+                      <View style={styles.tagContainer}>
+                        {lineErrors.map((type, idx) => (
+                          <View
+                            key={`${lineNum}-${type}-${idx}`}
+                            style={[styles.tag, { backgroundColor: tagColors[type as MistakeType].bg }]}
+                          >
+                            <Text style={[styles.tagText, { color: tagColors[type as MistakeType].text }]}>
+                              {type}
+                            </Text>
+                          </View>
+                        ))}
+                      </View>
+                    )}
+                  </View>
+                );
+              })}
+            </View>
 
             <TouchableOpacity
               style={styles.completeTestButton}
@@ -442,17 +481,49 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#fff',
   },
-  mistakeList: {
+  linePanel: {
     marginBottom: 12,
-    backgroundColor: '#fef2f2',
-    borderRadius: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    borderRadius: 10,
+    overflow: 'hidden',
   },
-  mistakeItem: {
+  lineRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 7,
+    paddingHorizontal: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#eee',
+    backgroundColor: '#fff',
+  },
+  lineRowError: {
+    backgroundColor: '#fefafa',
+  },
+  lineNumber: {
     fontSize: 13,
-    color: '#721c24',
+    fontWeight: '500',
+    color: '#999',
+    width: 48,
+  },
+  lineNumberError: {
+    color: '#555',
+    fontWeight: '700',
+  },
+  tagContainer: {
+    flex: 1,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 4,
+  },
+  tag: {
+    paddingHorizontal: 8,
     paddingVertical: 3,
+    borderRadius: 10,
+  },
+  tagText: {
+    fontSize: 11,
+    fontWeight: '600',
   },
   completeTestButton: {
     paddingVertical: 14,
