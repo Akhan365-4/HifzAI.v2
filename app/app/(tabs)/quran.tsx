@@ -218,7 +218,7 @@ export default function QuranScreen() {
                   <TouchableOpacity
                     key={i}
                     style={styles.pageLine}
-                    onPress={() => setSelectedLine(lineNum)}
+                    onPress={() => setSelectedLine((prev) => prev === lineNum ? null : lineNum)}
                     activeOpacity={0.7}
                   >
                     {bar}
