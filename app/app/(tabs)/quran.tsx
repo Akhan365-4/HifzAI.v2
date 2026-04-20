@@ -195,11 +195,17 @@ export default function QuranScreen() {
         )}
 
         <View style={styles.pageArea}>
-          <Text style={styles.pageTitle}>Quran Page {page}</Text>
-          <Text style={styles.pagePlaceholder}>
-            15-line Uthmani Madina Mushaf placeholder
-          </Text>
-          <Text style={styles.modeIndicator}>Mode: {mode}</Text>
+          <View style={styles.pageHeader}>
+            <Text style={styles.pageTitle}>Page {page}</Text>
+            <Text style={styles.modeIndicator}>{mode} Mode</Text>
+          </View>
+          <View style={styles.pageLines}>
+            {Array.from({ length: 15 }, (_, i) => (
+              <View key={i} style={styles.pageLine}>
+                <View style={styles.pageLineBar} />
+              </View>
+            ))}
+          </View>
         </View>
 
         {mode === 'Test' && (
@@ -431,29 +437,43 @@ const styles = StyleSheet.create({
     color: '#fff',
   },
   pageArea: {
-    minHeight: 220,
     marginHorizontal: 16,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 12,
+    borderColor: '#d5d0c8',
+    borderRadius: 8,
+    backgroundColor: '#fdf9f3',
+    padding: 14,
+  },
+  pageHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#fafafa',
+    marginBottom: 10,
+    paddingBottom: 8,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#ddd',
   },
   pageTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    marginBottom: 8,
-  },
-  pagePlaceholder: {
-    fontSize: 14,
-    color: '#888',
-    marginBottom: 12,
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#444',
   },
   modeIndicator: {
-    fontSize: 13,
-    color: '#aaa',
+    fontSize: 12,
+    color: '#999',
+  },
+  pageLines: {
+    gap: 8,
+  },
+  pageLine: {
+    justifyContent: 'center',
+    height: 18,
+  },
+  pageLineBar: {
+    height: 8,
+    borderRadius: 3,
+    backgroundColor: '#e8e2d9',
   },
   testControls: {
     paddingHorizontal: 16,
