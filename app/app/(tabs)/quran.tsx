@@ -201,7 +201,7 @@ export default function QuranScreen() {
           </View>
           <View style={styles.pageLines}>
             {Array.from({ length: 15 }, (_, i) => {
-              const hasError = mistakesByLine.has(i + 1);
+              const hasError = mode === 'Test' && mistakesByLine.has(i + 1);
               return (
                 <View key={i} style={styles.pageLine}>
                   <View style={[styles.pageLineBar, hasError && styles.pageLineBarError]} />
