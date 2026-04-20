@@ -209,7 +209,7 @@ export default function QuranScreen() {
               const bar = (
                 <View style={[
                   styles.pageLineBar,
-                  hasError && styles.pageLineBarError,
+                  hasError && !isSelected && styles.pageLineBarError,
                   isSelected && styles.pageLineBarSelected,
                 ]} />
               );
