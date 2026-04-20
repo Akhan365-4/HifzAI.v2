@@ -200,11 +200,14 @@ export default function QuranScreen() {
             <Text style={styles.modeIndicator}>{mode} Mode</Text>
           </View>
           <View style={styles.pageLines}>
-            {Array.from({ length: 15 }, (_, i) => (
-              <View key={i} style={styles.pageLine}>
-                <View style={styles.pageLineBar} />
-              </View>
-            ))}
+            {Array.from({ length: 15 }, (_, i) => {
+              const hasError = mistakesByLine.has(i + 1);
+              return (
+                <View key={i} style={styles.pageLine}>
+                  <View style={[styles.pageLineBar, hasError && styles.pageLineBarError]} />
+                </View>
+              );
+            })}
           </View>
         </View>
 
@@ -474,6 +477,11 @@ const styles = StyleSheet.create({
     height: 8,
     borderRadius: 3,
     backgroundColor: '#e8e2d9',
+  },
+  pageLineBarError: {
+    backgroundColor: '#f0c4c4',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: '#d4a0a0',
   },
   testControls: {
     paddingHorizontal: 16,
