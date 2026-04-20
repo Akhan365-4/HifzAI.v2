@@ -60,6 +60,7 @@ export default function QuranScreen() {
   const [mistakes, setMistakes] = useState<Mistake[]>([]);
   const [feedback, setFeedback] = useState<TestFeedback | null>(null);
   const [isFeedbackExpanded, setIsFeedbackExpanded] = useState(true);
+  const [selectedLine, setSelectedLine] = useState<number | null>(null);
 
   useEffect(() => {
     if (pageParam) {
@@ -74,6 +75,7 @@ export default function QuranScreen() {
     if (!isLoaded) return;
     setMistakes(getPageMistakes(page));
     setFeedback(null);
+    setSelectedLine(null);
   }, [page, isLoaded, mode]);
 
   const hasMountedDifficulty = useRef(false);
@@ -84,13 +86,13 @@ export default function QuranScreen() {
     }
     setMistakes([]);
     setPageMistakes(page, []);
+    setSelectedLine(null);
   }, [difficulty]);
 
-  const addMistake = () => {
-    const position = Math.floor(Math.random() * 15) + 1;
-    const type = MISTAKE_TYPES[Math.floor(Math.random() * MISTAKE_TYPES.length)];
+  const addMistakeToLine = (type: MistakeType) => {
+    if (selectedLine === null) return;
     mistakeIdCounter += 1;
-    const newMistake: Mistake = { id: String(mistakeIdCounter), position, type };
+    const newMistake: Mistake = { id: String(mistakeIdCounter), position: selectedLine, type };
     const updated = [...mistakes, newMistake];
     setMistakes(updated);
     setPageMistakes(page, updated);
@@ -201,12 +203,29 @@ export default function QuranScreen() {
           </View>
           <View style={styles.pageLines}>
             {Array.from({ length: 15 }, (_, i) => {
-              const hasError = mode === 'Test' && mistakesByLine.has(i + 1);
-              return (
-                <View key={i} style={styles.pageLine}>
-                  <View style={[styles.pageLineBar, hasError && styles.pageLineBarError]} />
-                </View>
+              const lineNum = i + 1;
+              const hasError = mode === 'Test' && mistakesByLine.has(lineNum);
+              const isSelected = mode === 'Test' && selectedLine === lineNum;
+              const bar = (
+                <View style={[
+                  styles.pageLineBar,
+                  hasError && styles.pageLineBarError,
+                  isSelected && styles.pageLineBarSelected,
+                ]} />
               );
+              if (mode === 'Test') {
+                return (
+                  <TouchableOpacity
+                    key={i}
+                    style={styles.pageLine}
+                    onPress={() => setSelectedLine(lineNum)}
+                    activeOpacity={0.7}
+                  >
+                    {bar}
+                  </TouchableOpacity>
+                );
+              }
+              return <View key={i} style={styles.pageLine}>{bar}</View>;
             })}
           </View>
         </View>
@@ -217,14 +236,29 @@ export default function QuranScreen() {
               <Text style={styles.mistakeText}>
                 Mistakes: {mistakes.length} / {maxMistakes === Infinity ? '∞' : maxMistakes}
               </Text>
-              <TouchableOpacity
-                style={styles.addMistakeButton}
-                onPress={addMistake}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.addMistakeText}>+ Add Mistake</Text>
-              </TouchableOpacity>
+              {selectedLine !== null && (
+                <Text style={styles.selectedLineLabel}>Line {selectedLine}</Text>
+              )}
             </View>
+
+            {selectedLine !== null ? (
+              <View style={styles.mistakeTypeRow}>
+                {MISTAKE_TYPES.map((type) => (
+                  <TouchableOpacity
+                    key={type}
+                    style={[styles.mistakeTypeButton, { backgroundColor: tagColors[type].bg }]}
+                    onPress={() => addMistakeToLine(type)}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={[styles.mistakeTypeText, { color: tagColors[type].text }]}>
+                      {type}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            ) : (
+              <Text style={styles.selectLinePrompt}>Tap a line above to add a mistake</Text>
+            )}
 
             <View style={styles.linePanel}>
               {Array.from({ length: 15 }, (_, i) => {
@@ -483,6 +517,11 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: '#d4a0a0',
   },
+  pageLineBarSelected: {
+    backgroundColor: '#b3d4fc',
+    borderWidth: 1,
+    borderColor: '#4a90d9',
+  },
   testControls: {
     paddingHorizontal: 16,
     marginBottom: 16,
@@ -498,16 +537,32 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: '#333',
   },
-  addMistakeButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 14,
-    borderRadius: 6,
-    backgroundColor: '#FF3B30',
+  selectedLineLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#4a90d9',
   },
-  addMistakeText: {
+  mistakeTypeRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 12,
+  },
+  mistakeTypeButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+  },
+  mistakeTypeText: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#fff',
+  },
+  selectLinePrompt: {
+    fontSize: 13,
+    color: '#999',
+    textAlign: 'center',
+    marginBottom: 12,
+    fontStyle: 'italic',
   },
   linePanel: {
     marginBottom: 12,
