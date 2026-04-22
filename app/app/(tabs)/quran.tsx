@@ -11,6 +11,7 @@ import {
 import { useLocalSearchParams, router } from 'expo-router';
 
 import { usePageStatus } from '@/contexts/page-status-context';
+import { getPageText } from '@/data/mock-quran-text';
 import { MISTAKE_TYPES, type Mistake, type MistakeType, type PageStatus } from '@/data/mock-juz-data';
 import {
   evaluateTest,
@@ -204,28 +205,39 @@ export default function QuranScreen() {
           <View style={styles.pageLines}>
             {Array.from({ length: 15 }, (_, i) => {
               const lineNum = i + 1;
-              const hasError = mode === 'Test' && mistakesByLine.has(lineNum);
-              const isSelected = mode === 'Test' && selectedLine === lineNum;
-              const bar = (
-                <View style={[
-                  styles.pageLineBar,
-                  hasError && !isSelected && styles.pageLineBarError,
-                  isSelected && styles.pageLineBarSelected,
-                ]} />
-              );
-              if (mode === 'Test') {
+
+              if (mode === 'Read') {
+                const textLines = getPageText(page);
+                if (textLines) {
+                  return (
+                    <View key={i} style={styles.pageTextLine}>
+                      <Text style={styles.pageTextArabic}>{textLines[i]}</Text>
+                    </View>
+                  );
+                }
                 return (
-                  <TouchableOpacity
-                    key={i}
-                    style={styles.pageLine}
-                    onPress={() => setSelectedLine((prev) => prev === lineNum ? null : lineNum)}
-                    activeOpacity={0.7}
-                  >
-                    {bar}
-                  </TouchableOpacity>
+                  <View key={i} style={styles.pageLine}>
+                    <View style={styles.pageLineBar} />
+                  </View>
                 );
               }
-              return <View key={i} style={styles.pageLine}>{bar}</View>;
+
+              const hasError = mistakesByLine.has(lineNum);
+              const isSelected = selectedLine === lineNum;
+              return (
+                <TouchableOpacity
+                  key={i}
+                  style={styles.pageLine}
+                  onPress={() => setSelectedLine((prev) => prev === lineNum ? null : lineNum)}
+                  activeOpacity={0.7}
+                >
+                  <View style={[
+                    styles.pageLineBar,
+                    hasError && !isSelected && styles.pageLineBarError,
+                    isSelected && styles.pageLineBarSelected,
+                  ]} />
+                </TouchableOpacity>
+              );
             })}
           </View>
         </View>
@@ -506,6 +518,19 @@ const styles = StyleSheet.create({
   pageLine: {
     justifyContent: 'center',
     height: 18,
+  },
+  pageTextLine: {
+    paddingVertical: 4,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#ece6dd',
+  },
+  pageTextArabic: {
+    fontSize: 18,
+    lineHeight: 28,
+    textAlign: 'right',
+    writingDirection: 'rtl',
+    color: '#2c2c2c',
+    fontWeight: '400',
   },
   pageLineBar: {
     height: 8,
