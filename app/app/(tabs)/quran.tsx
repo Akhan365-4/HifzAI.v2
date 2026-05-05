@@ -11,7 +11,7 @@ import {
 import { useLocalSearchParams, router } from 'expo-router';
 
 import { usePageStatus } from '@/contexts/page-status-context';
-import { fetchFullQuranUthmani, PAGE_TO_SURAH, type SurahData } from '@/services/quran-api';
+import { getAyahsByPage, type AyahWithSurah } from '@/services/quran-api';
 import { MISTAKE_TYPES, type Mistake, type MistakeType, type PageStatus } from '@/data/mock-juz-data';
 import {
   evaluateTest,
@@ -71,30 +71,22 @@ export default function QuranScreen() {
   const [feedback, setFeedback] = useState<TestFeedback | null>(null);
   const [isFeedbackExpanded, setIsFeedbackExpanded] = useState(true);
   const [selectedLine, setSelectedLine] = useState<number | null>(null);
-  const [surah, setSurah] = useState<SurahData | null>(null);
+  const [pageAyahs, setPageAyahs] = useState<AyahWithSurah[]>([]);
   const [isLoadingText, setIsLoadingText] = useState(false);
   const [textError, setTextError] = useState<string | null>(null);
 
   useEffect(() => {
-    const surahNumber = PAGE_TO_SURAH[page];
-    if (!surahNumber || mode !== 'Read') {
-      setSurah(null);
+    if (mode !== 'Read') {
+      setPageAyahs([]);
       setTextError(null);
       return;
     }
     let cancelled = false;
     setIsLoadingText(true);
     setTextError(null);
-    fetchFullQuranUthmani()
-      .then((quran) => {
-        if (cancelled) return;
-        const found = quran.surahs.find((s) => s.number === surahNumber);
-        if (!found) {
-          setTextError(`Surah ${surahNumber} not found`);
-          setSurah(null);
-        } else {
-          setSurah(found);
-        }
+    getAyahsByPage(page)
+      .then((ayahs) => {
+        if (!cancelled) setPageAyahs(ayahs);
       })
       .catch((err) => {
         if (!cancelled) setTextError(err.message);
@@ -106,6 +98,28 @@ export default function QuranScreen() {
       cancelled = true;
     };
   }, [page, mode]);
+
+  const pageGroups = useMemo(() => {
+    const groups: { surahNumber: number; surahName: string; surahEnglishName: string;
+      surahEnglishNameTranslation: string; isSurahStart: boolean; ayahs: AyahWithSurah[] }[] = [];
+    for (const ayah of pageAyahs) {
+      const last = groups[groups.length - 1];
+      if (last && last.surahNumber === ayah.surahNumber) {
+        last.ayahs.push(ayah);
+        if (ayah.numberInSurah === 1) last.isSurahStart = true;
+      } else {
+        groups.push({
+          surahNumber: ayah.surahNumber,
+          surahName: ayah.surahName,
+          surahEnglishName: ayah.surahEnglishName,
+          surahEnglishNameTranslation: ayah.surahEnglishNameTranslation,
+          isSurahStart: ayah.numberInSurah === 1,
+          ayahs: [ayah],
+        });
+      }
+    }
+    return groups;
+  }, [pageAyahs]);
 
   useEffect(() => {
     if (pageParam) {
@@ -246,7 +260,7 @@ export default function QuranScreen() {
             <Text style={styles.pageTitle}>Page {page}</Text>
             <Text style={styles.modeIndicator}>{mode} Mode</Text>
           </View>
-          {mode === 'Read' && PAGE_TO_SURAH[page] ? (
+          {mode === 'Read' ? (
             <View style={styles.mushafPage}>
               {isLoadingText && (
                 <Text style={styles.loadingText}>Loading Quran text...</Text>
@@ -254,24 +268,27 @@ export default function QuranScreen() {
               {textError && (
                 <Text style={styles.errorText}>Error: {textError}</Text>
               )}
-              {!isLoadingText && !textError && surah && (
-                <>
-                  <View style={styles.surahHeader}>
-                    <Text style={styles.surahNameArabic}>{surah.name}</Text>
-                    <View style={styles.surahMetaRow}>
-                      <Text style={styles.surahMetaText}>{surah.englishName}</Text>
-                      <Text style={styles.surahMetaDot}>·</Text>
-                      <Text style={styles.surahMetaText}>{surah.englishNameTranslation}</Text>
+              {!isLoadingText && !textError && pageAyahs.length === 0 && (
+                <Text style={styles.loadingText}>No ayahs found for this page.</Text>
+              )}
+              {!isLoadingText && !textError && pageGroups.map((group, gIdx) => (
+                <View key={`${group.surahNumber}-${gIdx}`}>
+                  {group.isSurahStart ? (
+                    <View style={styles.surahHeader}>
+                      <Text style={styles.surahNameArabic}>{group.surahName}</Text>
+                      <View style={styles.surahMetaRow}>
+                        <Text style={styles.surahMetaText}>{group.surahEnglishName}</Text>
+                        <Text style={styles.surahMetaDot}>·</Text>
+                        <Text style={styles.surahMetaText}>{group.surahEnglishNameTranslation}</Text>
+                      </View>
                     </View>
-                    <View style={styles.surahMetaRow}>
-                      <Text style={styles.surahMetaSubtle}>
-                        {surah.revelationType}  ·  {surah.numberOfAyahs} ayahs
-                      </Text>
-                    </View>
-                  </View>
-
+                  ) : (
+                    <Text style={styles.surahContinuationLabel}>
+                      …{group.surahEnglishName} (cont.)
+                    </Text>
+                  )}
                   <Text style={styles.mushafText}>
-                    {surah.ayahs.map((ayah, idx) => (
+                    {group.ayahs.map((ayah, idx) => (
                       <Text key={ayah.number}>
                         {idx > 0 ? ' ' : ''}
                         {ayah.text}
@@ -281,14 +298,6 @@ export default function QuranScreen() {
                       </Text>
                     ))}
                   </Text>
-                </>
-              )}
-            </View>
-          ) : mode === 'Read' ? (
-            <View style={styles.pageLines}>
-              {Array.from({ length: 15 }, (_, i) => (
-                <View key={i} style={styles.pageLine}>
-                  <View style={styles.pageLineBar} />
                 </View>
               ))}
             </View>
@@ -648,6 +657,14 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: '#a89473',
     fontStyle: 'italic',
+  },
+  surahContinuationLabel: {
+    fontSize: 12,
+    color: '#a89473',
+    fontStyle: 'italic',
+    textAlign: 'right',
+    marginBottom: 6,
+    marginTop: 4,
   },
   mushafText: {
     fontSize: 22,
