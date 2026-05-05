@@ -11,7 +11,7 @@ import {
 import { useLocalSearchParams, router } from 'expo-router';
 
 import { usePageStatus } from '@/contexts/page-status-context';
-import { getPageText } from '@/data/mock-quran-text';
+import { fetchSurahUthmani, PAGE_TO_SURAH, type Ayah } from '@/services/quran-api';
 import { MISTAKE_TYPES, type Mistake, type MistakeType, type PageStatus } from '@/data/mock-juz-data';
 import {
   evaluateTest,
@@ -62,6 +62,24 @@ export default function QuranScreen() {
   const [feedback, setFeedback] = useState<TestFeedback | null>(null);
   const [isFeedbackExpanded, setIsFeedbackExpanded] = useState(true);
   const [selectedLine, setSelectedLine] = useState<number | null>(null);
+  const [ayahs, setAyahs] = useState<Ayah[]>([]);
+  const [isLoadingText, setIsLoadingText] = useState(false);
+  const [textError, setTextError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const surahNumber = PAGE_TO_SURAH[page];
+    if (!surahNumber || mode !== 'Read') {
+      setAyahs([]);
+      setTextError(null);
+      return;
+    }
+    setIsLoadingText(true);
+    setTextError(null);
+    fetchSurahUthmani(surahNumber)
+      .then(setAyahs)
+      .catch((err) => setTextError(err.message))
+      .finally(() => setIsLoadingText(false));
+  }, [page, mode]);
 
   useEffect(() => {
     if (pageParam) {
@@ -202,44 +220,53 @@ export default function QuranScreen() {
             <Text style={styles.pageTitle}>Page {page}</Text>
             <Text style={styles.modeIndicator}>{mode} Mode</Text>
           </View>
-          <View style={styles.pageLines}>
-            {Array.from({ length: 15 }, (_, i) => {
-              const lineNum = i + 1;
-
-              if (mode === 'Read') {
-                const textLines = getPageText(page);
-                if (textLines) {
-                  return (
-                    <View key={i} style={styles.pageTextLine}>
-                      <Text style={styles.pageTextArabic}>{textLines[i]}</Text>
-                    </View>
-                  );
-                }
+          {mode === 'Read' && PAGE_TO_SURAH[page] ? (
+            <View style={styles.pageLines}>
+              {isLoadingText && (
+                <Text style={styles.loadingText}>Loading Quran text...</Text>
+              )}
+              {textError && (
+                <Text style={styles.errorText}>Error: {textError}</Text>
+              )}
+              {!isLoadingText && !textError && ayahs.map((ayah) => (
+                <View key={ayah.number} style={styles.pageTextLine}>
+                  <Text style={styles.pageTextArabic}>
+                    {ayah.text} ﴿{ayah.numberInSurah}﴾
+                  </Text>
+                </View>
+              ))}
+            </View>
+          ) : mode === 'Read' ? (
+            <View style={styles.pageLines}>
+              {Array.from({ length: 15 }, (_, i) => (
+                <View key={i} style={styles.pageLine}>
+                  <View style={styles.pageLineBar} />
+                </View>
+              ))}
+            </View>
+          ) : (
+            <View style={styles.pageLines}>
+              {Array.from({ length: 15 }, (_, i) => {
+                const lineNum = i + 1;
+                const hasError = mistakesByLine.has(lineNum);
+                const isSelected = selectedLine === lineNum;
                 return (
-                  <View key={i} style={styles.pageLine}>
-                    <View style={styles.pageLineBar} />
-                  </View>
+                  <TouchableOpacity
+                    key={i}
+                    style={styles.pageLine}
+                    onPress={() => setSelectedLine((prev) => prev === lineNum ? null : lineNum)}
+                    activeOpacity={0.7}
+                  >
+                    <View style={[
+                      styles.pageLineBar,
+                      hasError && !isSelected && styles.pageLineBarError,
+                      isSelected && styles.pageLineBarSelected,
+                    ]} />
+                  </TouchableOpacity>
                 );
-              }
-
-              const hasError = mistakesByLine.has(lineNum);
-              const isSelected = selectedLine === lineNum;
-              return (
-                <TouchableOpacity
-                  key={i}
-                  style={styles.pageLine}
-                  onPress={() => setSelectedLine((prev) => prev === lineNum ? null : lineNum)}
-                  activeOpacity={0.7}
-                >
-                  <View style={[
-                    styles.pageLineBar,
-                    hasError && !isSelected && styles.pageLineBarError,
-                    isSelected && styles.pageLineBarSelected,
-                  ]} />
-                </TouchableOpacity>
-              );
-            })}
-          </View>
+              })}
+            </View>
+          )}
         </View>
 
         {mode === 'Test' && (
@@ -519,14 +546,26 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     height: 18,
   },
+  loadingText: {
+    fontSize: 14,
+    color: '#888',
+    textAlign: 'center',
+    paddingVertical: 40,
+  },
+  errorText: {
+    fontSize: 14,
+    color: '#c0392b',
+    textAlign: 'center',
+    paddingVertical: 40,
+  },
   pageTextLine: {
-    paddingVertical: 4,
+    paddingVertical: 6,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: '#ece6dd',
   },
   pageTextArabic: {
     fontSize: 18,
-    lineHeight: 28,
+    lineHeight: 30,
     textAlign: 'right',
     writingDirection: 'rtl',
     color: '#2c2c2c',
