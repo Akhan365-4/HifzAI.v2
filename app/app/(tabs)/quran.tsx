@@ -11,7 +11,7 @@ import {
 import { useLocalSearchParams, router } from 'expo-router';
 
 import { usePageStatus } from '@/contexts/page-status-context';
-import { fetchSurahUthmani, PAGE_TO_SURAH, type Ayah } from '@/services/quran-api';
+import { fetchFullQuranUthmani, PAGE_TO_SURAH, type SurahData } from '@/services/quran-api';
 import { MISTAKE_TYPES, type Mistake, type MistakeType, type PageStatus } from '@/data/mock-juz-data';
 import {
   evaluateTest,
@@ -49,6 +49,15 @@ const tagColors: Record<MistakeType, { bg: string; text: string }> = {
 
 const MAX_PAGE = 604;
 
+const ARABIC_DIGITS = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
+
+function toArabicDigits(n: number): string {
+  return String(n)
+    .split('')
+    .map((d) => ARABIC_DIGITS[Number(d)] ?? d)
+    .join('');
+}
+
 let mistakeIdCounter = 0;
 
 export default function QuranScreen() {
@@ -62,23 +71,40 @@ export default function QuranScreen() {
   const [feedback, setFeedback] = useState<TestFeedback | null>(null);
   const [isFeedbackExpanded, setIsFeedbackExpanded] = useState(true);
   const [selectedLine, setSelectedLine] = useState<number | null>(null);
-  const [ayahs, setAyahs] = useState<Ayah[]>([]);
+  const [surah, setSurah] = useState<SurahData | null>(null);
   const [isLoadingText, setIsLoadingText] = useState(false);
   const [textError, setTextError] = useState<string | null>(null);
 
   useEffect(() => {
     const surahNumber = PAGE_TO_SURAH[page];
     if (!surahNumber || mode !== 'Read') {
-      setAyahs([]);
+      setSurah(null);
       setTextError(null);
       return;
     }
+    let cancelled = false;
     setIsLoadingText(true);
     setTextError(null);
-    fetchSurahUthmani(surahNumber)
-      .then(setAyahs)
-      .catch((err) => setTextError(err.message))
-      .finally(() => setIsLoadingText(false));
+    fetchFullQuranUthmani()
+      .then((quran) => {
+        if (cancelled) return;
+        const found = quran.surahs.find((s) => s.number === surahNumber);
+        if (!found) {
+          setTextError(`Surah ${surahNumber} not found`);
+          setSurah(null);
+        } else {
+          setSurah(found);
+        }
+      })
+      .catch((err) => {
+        if (!cancelled) setTextError(err.message);
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoadingText(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [page, mode]);
 
   useEffect(() => {
@@ -221,20 +247,42 @@ export default function QuranScreen() {
             <Text style={styles.modeIndicator}>{mode} Mode</Text>
           </View>
           {mode === 'Read' && PAGE_TO_SURAH[page] ? (
-            <View style={styles.pageLines}>
+            <View style={styles.mushafPage}>
               {isLoadingText && (
                 <Text style={styles.loadingText}>Loading Quran text...</Text>
               )}
               {textError && (
                 <Text style={styles.errorText}>Error: {textError}</Text>
               )}
-              {!isLoadingText && !textError && ayahs.map((ayah) => (
-                <View key={ayah.number} style={styles.pageTextLine}>
-                  <Text style={styles.pageTextArabic}>
-                    {ayah.text} ﴿{ayah.numberInSurah}﴾
+              {!isLoadingText && !textError && surah && (
+                <>
+                  <View style={styles.surahHeader}>
+                    <Text style={styles.surahNameArabic}>{surah.name}</Text>
+                    <View style={styles.surahMetaRow}>
+                      <Text style={styles.surahMetaText}>{surah.englishName}</Text>
+                      <Text style={styles.surahMetaDot}>·</Text>
+                      <Text style={styles.surahMetaText}>{surah.englishNameTranslation}</Text>
+                    </View>
+                    <View style={styles.surahMetaRow}>
+                      <Text style={styles.surahMetaSubtle}>
+                        {surah.revelationType}  ·  {surah.numberOfAyahs} ayahs
+                      </Text>
+                    </View>
+                  </View>
+
+                  <Text style={styles.mushafText}>
+                    {surah.ayahs.map((ayah, idx) => (
+                      <Text key={ayah.number}>
+                        {idx > 0 ? ' ' : ''}
+                        {ayah.text}
+                        <Text style={styles.ayahMarker}>
+                          {' '}﴿{toArabicDigits(ayah.numberInSurah)}﴾{' '}
+                        </Text>
+                      </Text>
+                    ))}
                   </Text>
-                </View>
-              ))}
+                </>
+              )}
             </View>
           ) : mode === 'Read' ? (
             <View style={styles.pageLines}>
@@ -558,18 +606,62 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     paddingVertical: 40,
   },
-  pageTextLine: {
-    paddingVertical: 6,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#ece6dd',
+  mushafPage: {
+    paddingVertical: 8,
+    paddingHorizontal: 4,
   },
-  pageTextArabic: {
-    fontSize: 18,
-    lineHeight: 30,
-    textAlign: 'right',
+  surahHeader: {
+    alignItems: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#d9c9a3',
+    borderRadius: 10,
+    backgroundColor: '#f7efde',
+  },
+  surahNameArabic: {
+    fontSize: 26,
+    color: '#3a2e1a',
+    textAlign: 'center',
     writingDirection: 'rtl',
-    color: '#2c2c2c',
+    fontWeight: '600',
+    marginBottom: 6,
+  },
+  surahMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    marginTop: 2,
+  },
+  surahMetaText: {
+    fontSize: 13,
+    color: '#6b5a3a',
+    fontWeight: '600',
+  },
+  surahMetaDot: {
+    fontSize: 13,
+    color: '#a89473',
+  },
+  surahMetaSubtle: {
+    fontSize: 11,
+    color: '#a89473',
+    fontStyle: 'italic',
+  },
+  mushafText: {
+    fontSize: 22,
+    lineHeight: 44,
+    textAlign: 'center',
+    writingDirection: 'rtl',
+    color: '#2a2419',
     fontWeight: '400',
+    paddingHorizontal: 6,
+  },
+  ayahMarker: {
+    fontSize: 16,
+    color: '#9a7b3e',
+    fontWeight: '700',
   },
   pageLineBar: {
     height: 8,
